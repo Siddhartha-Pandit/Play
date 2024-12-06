@@ -8,7 +8,7 @@ const registerUser = asyncHandler(async (req, res) => {
     // get user details from frontend
     // validation - not empty
     // check if user already exists: username, email
-    // check for images, check for avtar
+    // check for images, check for avatar
     // create user object -create entry in db
     // remove password and refresh token field from response
     // check for user creation
@@ -20,26 +20,35 @@ const registerUser = asyncHandler(async (req, res) => {
    ){
     throw new ApiError(400,"All fields are required")
    }
-   const existedUser=User.findOne({
+   const existedUser=await User.findOne({
     $or:[{email}, {username}]
    })
    if(existedUser){
     throw new ApiError(409,"User with email or username already exist !!!")
    }
 
-   const avtarLocalPath=req.files?.avtar[0]?.path;
-   const coverImageLocalPath=req.files?.coverImage[0]?.path;
-   if(!avtarLocalPath){
-    throw new ApiError(400,"Avtar is required")
+   const avatarLocalPath=req.files?.avatar[0]?.path;
+   //const coverImageLocalPath=req.files?.coverImage[0]?.path;
+   let coverImageLocalPath;
+   if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length>0){
+    coverImageLocalPath=req.files.coverImage[0].path
    }
-   const avtar= await uploadOnCloudinary(avtarLocalPath)
+   if(!avatarLocalPath){
+    throw new ApiError(400,"avatar is required")
+   }
+   const avatar= await uploadOnCloudinary(avatarLocalPath)
    const coverImage= await uploadOnCloudinary(coverImageLocalPath)
-   if(!avtar){
-    throw new ApiError(400,"Avtar is required")
+   if(!avatar){
+    throw new ApiError(400,"avatar is required")
    }
+  //  let coverImageUrl = "";
+  //  if (coverImageLocalPath) {
+  //     const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+  //     coverImageUrl = coverImage?.url || "";
+  //  }
   const user= await User.create({
     fullName,
-    avtar:avtar.url,
+    avatar:avatar.url,
     coverImage:coverImage?.url || "",
     email,
     password,
@@ -49,7 +58,7 @@ const registerUser = asyncHandler(async (req, res) => {
    const createdUser=await User.findById(user._id).select(
     "-password -refreshToken"
    )
-   if(createdUser){
+   if(!createdUser){
     throw new ApiError(500,"Something went wrong while regestring a user")
    }
    console.log("email :",email)
