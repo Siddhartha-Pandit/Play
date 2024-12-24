@@ -140,7 +140,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
   if(!video){
     throw new ApiError(404, "could not find the video ")
   }  
-  const oldVideoUrl=video.videoData
+  const oldVideoUrl=video.videoFile
   const oldThumbnailUrl=video.thumbnail
   if(oldVideoUrl){
    try{
@@ -150,7 +150,7 @@ deleteFromCloudinary(oldVideoUrl)
 
    }
   }
-  if(!oldThumbnailUrl){
+  if(oldThumbnailUrl){
     try{
         deleteFromCloudinary(oldThumbnailUrl)
            }catch(error){
@@ -165,6 +165,18 @@ deleteFromCloudinary(oldVideoUrl)
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params
+    if (!mongoose.isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid video ID");
+    }
+    const video=await Video.findById(videoId);
+  if(!video){
+    throw new ApiError(404, "could not find the video ")
+  }  
+  video.isPublished=!video.isPublished
+  await video.save()
+  return res
+  .status(200)
+  .json(new ApiResponse(200, video, "Publish status toggled successfully"));
    
 })
 
