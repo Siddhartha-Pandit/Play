@@ -4,7 +4,7 @@ import {User} from "../models/user.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
-import { uploadOnCloudinary} from "../utils/cloudinary.js"
+import { uploadOnCloudinary,deleteFromCloudinary} from "../utils/cloudinary.js"
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -60,22 +60,112 @@ const publishAVideo = asyncHandler(async (req, res) => {
 
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params
-    //TODO: get video by id
+    const videoDetails=await Video.findById(videoId);
+    if(!mongoose.isValidObjectId(videoId)){
+        throw new ApiError(400,"Invalid video Id")
+    }
+    if(!videoDetails){
+        throw new ApiError(404,"The video does not exist")
+    }
+    return res
+    .status(200)
+    .json(new ApiResponse(200,videoDetails,"Video found sucessfully"));
 })
-
 const updateVideo = asyncHandler(async (req, res) => {
-    const { videoId } = req.params
-    //TODO: update video details like title, description, thumbnail
+    const { videoId } = req.params;
+    const { title, description } = req.body;
 
-})
+    if (!mongoose.isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid video ID");
+    }
+    if (!title || !description) {
+        throw new ApiError(400, "All fields are required");
+    }
+
+    const oldVideo = await Video.findById(videoId);
+    if (!oldVideo) {
+        throw new ApiError(404, "Video not found");
+    }
+
+    const oldThumbnail = oldVideo.thumbnail;
+    const thumbnailLocalPath = req.file?.path || null;
+    console.log("Thumbnail Path:", oldThumbnail);
+
+    if (!thumbnailLocalPath) {
+        throw new ApiError(400, "Thumbnail file is missing from the request");
+    }
+
+    // Upload new thumbnail to Cloudinary
+    const thumbnailData = await uploadOnCloudinary(thumbnailLocalPath);
+    if (!thumbnailData) {
+        throw new ApiError(500, "Failed to upload thumbnail");
+    }
+
+    // Delete old thumbnail from Cloudinary
+    if (oldThumbnail) {
+        try {
+            await deleteFromCloudinary(oldThumbnail);
+        } catch (error) {
+            console.error("Error deleting old thumbnail from Cloudinary:", error);
+        }
+    }
+
+    // Update video details
+    const video = await Video.findByIdAndUpdate(
+        videoId,
+        {
+            $set: {
+                thumbnail: thumbnailData.url,
+                title,
+                description,
+            },
+        },
+        { new: true }
+    )
+
+    if (!video) {
+        throw new ApiError(500, "Failed to update video details");
+    }
+
+    return res.status(200).json(new ApiResponse(200, video, "Video updated successfully"));
+});
+
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
-    //TODO: delete video
+    if (!mongoose.isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid video ID");
+    }
+    const video=await Video.findById(videoId);
+  if(!video){
+    throw new ApiError(404, "could not find the video ")
+  }  
+  const oldVideoUrl=video.videoData
+  const oldThumbnailUrl=video.thumbnail
+  if(oldVideoUrl){
+   try{
+deleteFromCloudinary(oldVideoUrl)
+   }catch(error){
+    console.error("Error deleting old video from Cloudinary:", error);
+
+   }
+  }
+  if(!oldThumbnailUrl){
+    try{
+        deleteFromCloudinary(oldThumbnailUrl)
+           }catch(error){
+            console.error("Error deleting old thumbnail from Cloudinary:", error);
+        
+           }
+  }
+  await Video.deleteOne({ _id: videoId });
+  return res.status(200).json(new ApiResponse(200, null, "Video deleted successfully"));
+
 })
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params
+   
 })
 
 export {
