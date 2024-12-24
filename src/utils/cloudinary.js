@@ -53,38 +53,5 @@ const deleteFromCloudinary = async (url) => {
         throw new Error("Failed to delete file from Cloudinary");
     }
 };
-// const deleteFromCloudinary=async(url)=>{
-//     try{
-//         const publicId=extractPublicIdFormUrl(url)
-//         if (!publicId) throw new Error("Invalid Cloudinary URL.");
 
-//         const result=await cloudinary.uploader.destroy(publicId,{
-//             resource_type:"auto",
-//         })
-//         return result;
-//     }catch(error){
-//         console.error("Error deleting form clodinary:",error)
-//         throw new Error("Failed to delete file from Cloudinary")
-//     }
-// }
-
-const getVideoDetails=async(url)=>{
-    try{
-        const publicId=extractPublicIdFormUrl(url)
-        if (!publicId) throw new Error("Invalid Cloudinary URL.");
-
-const response=await cloudinary.api.resource(publicId,{
-    resource_type:"video",
-});
-return {
-    duration:response.duration,
-    format:response.format,
-    size:response.bytes,
-    resolution:`${response.width}x${response.height}`
-}
-    }catch(error){
-        console.error("Error fetching vido details",error)
-        throw new Error("Failed to fetch video details")
-    }
-}
-export {uploadOnCloudinary,deleteFromCloudinary,getVideoDetails}
+export {uploadOnCloudinary,deleteFromCloudinary}

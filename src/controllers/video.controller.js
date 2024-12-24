@@ -4,7 +4,7 @@ import {User} from "../models/user.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
-import {uploadOnCloudinary} from "../utils/cloudinary.js"
+import { uploadOnCloudinary} from "../utils/cloudinary.js"
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -15,6 +15,47 @@ const getAllVideos = asyncHandler(async (req, res) => {
 const publishAVideo = asyncHandler(async (req, res) => {
     const { title, description} = req.body
     // TODO: get video, upload to cloudinary, create video
+    if(!title || ! description){
+        throw new ApiError(400,"All fields are required")
+    }
+    const videoLocalPath=req.files?.videoFile[0]?.path;
+    const thumbnailLocalPath=req.files?.thumbnail[0]?.path;
+    if(!videoLocalPath){
+        throw new ApiError(400,"Video file is required")
+    }
+    if(!thumbnailLocalPath){
+        throw new ApiError(400,"Thumbnail is required")
+    }
+    const videoData=await uploadOnCloudinary(videoLocalPath)
+    if(!videoData){
+        throw new ApiError(500,"Video file is required")
+    }
+    const thumbnailData=await uploadOnCloudinary(thumbnailLocalPath)
+    if(!thumbnailData){
+        throw new ApiError(500,"Thumbnail is required")
+    }
+
+    const video=await Video.create({
+        videoFile: videoData.url,
+        thumbnail: thumbnailData.url,
+        title,
+        description,
+        duration:videoData.duration,
+        isPublished: true,
+        owner: req.user?._id,
+    })
+    if(!video){
+        throw new ApiError(500,"Something went wrong while uploading the video")
+
+    }
+    const videoDetails=await Video.findById(video._id)
+    if(!videoDetails){
+        throw new ApiError(500,"Something went wrong while uploading the video")
+    }
+    return res
+        .status(201)
+        .json(new ApiResponse(200,videoDetails,"Video uploaded sucessfully"))
+
 })
 
 const getVideoById = asyncHandler(async (req, res) => {
