@@ -2,7 +2,7 @@ import { response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {User} from "../models/user.model.js"
 import { ApiError } from "../utils/apiError.js";
-import {uploadOnCloudinary} from "../utils/cloudinary.js"
+import {deleteFromCloudinary, uploadOnCloudinary} from "../utils/cloudinary.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
 import mongoose from "mongoose";
@@ -237,13 +237,25 @@ const updateUserAvatar = asyncHandler(async(req, res) => {
       throw new ApiError(400, "Avatar file is missing")
   }
 
-  //TODO: delete old image - assignment
+  const userprofile=await User.findById(req.user?._id)
+  if(!userprofile){
+    throw new ApiError(404,"user not found")
+  }
+  const oldAvatarUrl=userprofile.avatar;
+  
 
   const avatar = await uploadOnCloudinary(avatarLocalPath)
 
   if (!avatar.url) {
       throw new ApiError(400, "Error while uploading on avatar")
       
+  }
+  if(oldAvatarUrl){
+    try{
+      await deleteFromCloudinary(oldAvatarUrl);
+    }catch(err){
+      console.error("Error deleting old avatar from cloudinary")
+    }
   }
 
   const user = await User.findByIdAndUpdate(
@@ -255,7 +267,7 @@ const updateUserAvatar = asyncHandler(async(req, res) => {
       },
       {new: true}
   ).select("-password")
-
+ 
   return res
   .status(200)
   .json(
@@ -271,10 +283,22 @@ const updateUsercoverImage=asyncHandler(async(req,res)=>{
   if(!coverImageLocalPath){
     throw new ApiError(400,"Cover image file is missing")
   }
+  const userprofile=await User.findById(req.user?._id)
+  if(!userprofile){
+    throw new ApiError(404,"user not found")
+  }
+  const oldcoverurl=userprofile.coverImage
   const coverImage=await uploadOnCloudinary(coverImageLocalPath)
   if(!coverImage.url){
     throw new ApiError(400,"Error while uploading on cover Image")
   }
+if(oldcoverurl){
+  try{
+    await deleteFromCloudinary(oldcoverurl)
+  }catch(error){
+    console.error("Failed to delete the coverImage")
+  }
+}
   const user=await User.findByIdAndUpdate(
 req.user?._id,
 {
@@ -409,6 +433,8 @@ return res
     )
 )
 })
+
+
 export {
   registerUser,
   loginUser,
