@@ -10,6 +10,20 @@ import { uploadOnCloudinary,deleteFromCloudinary} from "../utils/cloudinary.js"
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query
     //TODO: get all videos based on query, sort, pagination
+    const filters={}
+    if(query){
+        filters.title={$regex:query,$options:"i"}
+    }
+    if(userId && mongoose.isValidObjectId(userId)){
+        filters.owner=userId;
+    }
+    const sortOptions={[sortBy]:sortType==="asc" ? 1 : -1}
+    const videos=await Video.find(filters)
+    .sort(sortOptions)
+    .skip((page-1)*limit)
+    .limit(Number(limit))
+    const total =await Video.countDocuments(filters)
+    return res.status(200).json(new ApiResponse(200, { videos, total, page: Number(page), limit: Number(limit) }, "Videos retrieved successfully"))
 })
 
 const publishAVideo = asyncHandler(async (req, res) => {
