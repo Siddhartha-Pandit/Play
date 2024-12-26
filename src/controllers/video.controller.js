@@ -182,15 +182,24 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     if (!mongoose.isValidObjectId(videoId)) {
         throw new ApiError(400, "Invalid video ID");
     }
-    const video=await Video.findById(videoId);
-  if(!video){
-    throw new ApiError(404, "could not find the video ")
-  }  
-  video.isPublished=!video.isPublished
-  await video.save()
+   
+    const pipeline = [
+        { $match: { _id: mongoose.Types.ObjectId(videoId), owner: req.user._id } },
+        {
+            $set: {
+                isPublished: { $not: "$isPublished" }, // Toggle publish status
+            },
+        },
+        { $project: { _id: 1, title: 1, isPublished: 1, owner: 1 } },
+    ];
+
+    const updatedVideo = await Video.aggregate(pipeline);
+    if (!updatedVideo.length) {
+        throw new ApiError(404, "Video not found or you are not authorized to toggle publish status for this video");
+    }
   return res
   .status(200)
-  .json(new ApiResponse(200, video, "Publish status toggled successfully"));
+  .json(new ApiResponse(200, updatedVideo, "Publish status toggled successfully"));
    
 })
 

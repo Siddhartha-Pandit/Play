@@ -54,7 +54,7 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
     if(!mongoose.isValidObjectId(playlistId) || !mongoose.isValidObjectId(videoId)){
         throw new ApiError(400,"the playlistid or the video id is not valid")
     }
-    const playlist = await Playlist.findById(playlistId)
+    const playlist = await Playlist.findOne({_id:playlistId,owner:req.user_id})
     if(!playlist){
         throw new ApiError(404,"The playlist is not found")
     }
@@ -73,7 +73,8 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
     if(!mongoose.isValidObjectId(playlistId) || !mongoose.isValidObjectId(videoId)){
         throw new ApiError(400,"the playlistid or the video id is not valid")
     }
-    const playlist = await Playlist.findById(playlistId)
+    const playlist = await Playlist.findOne({ _id: playlistId, owner: req.user._id });
+
     if(!playlist){
         throw new ApiError(404,"The playlist is not found")
     }
@@ -91,12 +92,10 @@ const deletePlaylist = asyncHandler(async (req, res) => {
     if(!mongoose.isValidObjectId(playlistId)){
         throw new ApiError(400,"This is not valid playlist")
     }
-    const palylist= await Playlist.findById(playlistId)
-    if(!palylist){
-        throw new ApiError(404,"Playlist not found")
+    const result = await Playlist.findOneAndDelete({ _id: playlistId, owner: req.user._id });
+    if (!result) {
+        throw new ApiError(404, "Playlist not found or you are not authorized to delete it");
     }
-
-    await Playlist.deleteOne({_id:playlistId})
     return res.status(200).json(new ApiResponse(200,null,"Playlist deleted successfully"))
 })
 
@@ -114,8 +113,10 @@ const updatePlaylist = asyncHandler(async (req, res) => {
     if(!palylist){
         throw new ApiError(404,"Playlist not found")
     }
-    const updatedPlaylist=await Playlist.findByIdAndUpdate(
-        playlistId,
+    const updatedPlaylist=await Playlist.findOneAndUpdate(
+        {_id:playlistId,
+            owner:req.user_id
+        },
         {
         $set:{
             name,

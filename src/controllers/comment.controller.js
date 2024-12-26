@@ -71,13 +71,21 @@ const updateComment = asyncHandler(async (req, res) => {
     if(!commentContent){
         return new ApiError(400,"Comment content is required")
     }
+    // if(tweet.owner.toString()!== req.user._id.toString()){
+    //     throw new ApiError(403,"You are unauthoriaed to delete this tweet")
+    //    }
+    
     const comment=await Comment.findByIdAndUpdate(
-        commentId,{
-            $set:{
-                content:commentContent
-            }
-        },
-        {new:true}
+       {
+        _id:commentId,
+        owner:req.user._id
+       },
+       {
+        $set:{
+            content:commentContent
+        }
+       },
+       {new:true}
     )
     if(!comment){
         throw new ApiError(404,"Could't find the comment")
@@ -97,7 +105,13 @@ const deleteComment = asyncHandler(async (req, res) => {
     if(!mongoose.isValidObjectId(commentId)){
         throw new ApiError(400,"The commentId is not valid")
     }
-   const result= await Comment.deleteOne({_id:commentId})
+
+   const result= await Comment.deleteOne(
+    {
+        _id:commentId,
+        owner:req.user._id
+    }
+)
     if (result.deletedCount === 0) {
         throw new ApiError(404, "Comment not found or already deleted");
     }
